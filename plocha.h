@@ -2,13 +2,14 @@
 #define PLOCHA_H
 
 #define riadky 30
-#define stlpce 30
-#define pocet_jedla 30
+#define stlpce 60
+#define pocet_jedla 20
 
-extern char plocha[stlpce * riadky];
+struct Plocha {
+    char policko[stlpce * riadky];
+};
 
-void napln_plochu(void);
+void napln_plochu(struct Plocha*);
 void reset_cursor(void);
-void print_plocha(void);
 
 #endif // PLOCHA_H

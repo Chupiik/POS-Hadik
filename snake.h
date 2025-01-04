@@ -1,6 +1,8 @@
 #ifndef SNAKE_H
 #define SNAKE_H
 
+#include "plocha.h"
+
 #define MAX_DLZKA 256
 struct SnakeCast {
     int x, y;
@@ -11,9 +13,7 @@ struct Snake {
     struct SnakeCast cast[MAX_DLZKA];
 };
 
-extern struct Snake snake;
-
-void vykresli_snake(void);
-void pohni_snake(void);
+void vykresli_snake(struct Snake *snake, struct Plocha* plocha);
+void pohni_snake(struct Snake *snake);
 
 #endif // SNAKE_H

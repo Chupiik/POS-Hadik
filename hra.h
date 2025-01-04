@@ -8,13 +8,11 @@ struct Jedlo {
     int x, y;
     int zjedene;
 };
-extern struct Jedlo jedlo[pocet_jedla];
 
-extern int jeGameOver;
-
-void nastav_snake(void);
-void nastav_jedlo(void);
-void vykresli_jedlo(void);
-void pravidla_hry(void);
+void nastav_snake(struct Snake *snake);
+void nastav_jedlo(struct Jedlo jedlo[pocet_jedla]);
+void vykresli_jedlo(struct Jedlo jedlo[pocet_jedla], struct Plocha* plocha);
+void pravidla_hry(struct Snake *snake, struct Jedlo jedlo[pocet_jedla], struct Plocha* plocha, int *jeGameOver);
+void vykonaj_pohyb(char input, struct Snake *snake);
 
 #endif // HRA_H
