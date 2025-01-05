@@ -32,36 +32,43 @@ void* client_thread(void* arg) {
 
     while (!client->jeGameOver) {
         read(client->fd, &input, 1);
-		pthread_mutex_lock(&game_mutex);
-		printf("Server - client %d, received input: %c\n", (int)(client - clients), input);
-		printf("Server - client %d, before vykonaj_pohyb - dx: %d, dy: %d\n", (int)(client - clients), client->snake.pohybX, client->snake.pohybY);
-		vykonaj_pohyb(input, &client->snake);
-		printf("Server - client %d, after vykonaj_pohyb - dx: %d, dy: %d\n", (int)(client - clients), client->snake.pohybX, client->snake.pohybY);
-		pohni_snake(&client->snake);
-		printf("Server - client %d, after pohni_snake - snake x: %d, y: %d\n", (int)(client - clients), client->snake.cast[0].x, client->snake.cast[0].y);
-		pravidla_hry(&client->snake, jedlo, &plocha, &client->jeGameOver);
-		printf("Server - client %d, after pravidla_hry - jeGameOver: %d\n", (int)(client - clients), client->jeGameOver);
-		pthread_mutex_unlock(&game_mutex);
         
+		pthread_mutex_lock(&game_mutex);
 
-        pthread_mutex_lock(&game_mutex);
-        napln_plochu(&plocha);
-        vykresli_jedlo(jedlo, &plocha);
-        for (int i = 0; i < MAX_CLIENTS; i++) {
-            if (clients[i].fd > 0 && !clients[i].jeGameOver) {
-                vykresli_snake(&clients[i].snake, &plocha);
-            }
-        }
+		vykonaj_pohyb(input, &client->snake);
+		pohni_snake(&client->snake);
+		pravidla_hry(&client->snake, jedlo, &plocha, &client->jeGameOver);
 
-        printf("Server - client %d, broadcasting plocha\n", (int)(client - clients));
-        if (write(client->fd, plocha.policko, sizeof(char) * stlpce * riadky) < 0) {
-            perror("Error writing to client");
-            close(client->fd);
-            client->fd = -1;
-            pthread_mutex_unlock(&game_mutex);
-            break;
-        }
-        pthread_mutex_unlock(&game_mutex);
+		napln_plochu(&plocha);
+		vykresli_jedlo(jedlo, &plocha);
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			if (clients[i].fd > 0 && !clients[i].jeGameOver) {
+				vykresli_snake(&clients[i].snake, &plocha);
+			}
+		}
+
+		// Send game board
+		if (write(client->fd, plocha.policko, sizeof(char) * stlpce * riadky) < 0) {
+			perror("Error writing board to client");
+			close(client->fd);
+			client->fd = -1;
+			pthread_mutex_unlock(&game_mutex);
+			break;
+		}
+
+		// Send score
+		char score_message[50];
+		snprintf(score_message, sizeof(score_message), "Score: %d", client->snake.dlzka);
+		if (write(client->fd, score_message, strlen(score_message)) < 0) {
+			perror("Error writing score to client");
+			close(client->fd);
+			client->fd = -1;
+			pthread_mutex_unlock(&game_mutex);
+			break;
+		}
+
+		pthread_mutex_unlock(&game_mutex);
+	
 
         usleep(300000);
     }
@@ -116,6 +123,7 @@ int main() {
             continue;
         }
 
+        // Set the new client socket to non-blocking mode
         int flags = fcntl(new_client, F_GETFL, 0);
         if (flags == -1 || fcntl(new_client, F_SETFL, flags | O_NONBLOCK) == -1) {
             perror("Failed to set client socket to non-blocking mode");
@@ -123,7 +131,7 @@ int main() {
             continue;
         }
 
-        int vytvoreny = 0;
+        int assigned = 0;
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (clients[i].fd == -1) {
                 clients[i].fd = new_client;
@@ -136,13 +144,13 @@ int main() {
                     close(new_client);
                     clients[i].fd = -1;
                 } else {
-                    vytvoreny = 1;
+                    assigned = 1;
                 }
                 break;
             }
         }
 
-        if (!vytvoreny) {
+        if (!assigned) {
             printf("Max clients reached. Connection rejected.\n");
             close(new_client);
         }

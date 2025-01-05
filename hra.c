@@ -55,10 +55,30 @@ void pravidla_hry(struct Snake *snake, struct Jedlo jedlo[pocet_jedla], struct P
 void vykonaj_pohyb(char input, struct Snake *snake){
     if (input != -1) {
         switch (input) {
-            case 'w': snake->pohybX = 0; snake->pohybY = -1; break;
-            case 's': snake->pohybX = 0; snake->pohybY = 1; break;
-            case 'a': snake->pohybX = -1; snake->pohybY = 0; break;
-            case 'd': snake->pohybX = 1; snake->pohybY = 0; break;
+            case 'w': 
+				if (snake->pohybY != 1) {
+					snake->pohybX = 0; 
+					snake->pohybY = -1; 
+				}
+				break;
+            case 's': 
+				if (snake->pohybY != -1) {
+					snake->pohybX = 0; 
+					snake->pohybY = 1; 
+				}
+				break;
+            case 'a': 
+				if (snake->pohybX != 1) {
+					snake->pohybX = -1; 
+					snake->pohybY = 0; 
+				}
+				break;
+            case 'd': 
+				if (snake->pohybX != -1) {
+					snake->pohybX = 1; 
+					snake->pohybY = 0; 
+				}
+				break;
         }
     }
 }

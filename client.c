@@ -12,7 +12,6 @@
 
 int sock_fd;
 int game_over = 0;
-char plocha_copy[stlpce * riadky];
 
 void* handle_input(void* arg) {
     while (!game_over) {
@@ -24,41 +23,44 @@ void* handle_input(void* arg) {
                 exit(EXIT_FAILURE);
             }
         }
-        usleep(50000);
+        usleep(50000); // Prevent excessive CPU usage
     }
     return NULL;
 }
 
 void* handle_output(void* arg) {
-    char server_buffer[stlpce * riadky + 1];
+    char board_buffer[stlpce * riadky];
+    char score_buffer[50];
+
     while (!game_over) {
-        ssize_t bytes_read = read(sock_fd, server_buffer, sizeof(server_buffer) - 1);
-        if (bytes_read < 0) {
-            perror("Error reading from server");
+        // Read the board
+        ssize_t bytes_read_board = read(sock_fd, board_buffer, sizeof(board_buffer));
+        if (bytes_read_board <= 0) {
+            perror("Error reading board from server");
             close(sock_fd);
             exit(EXIT_FAILURE);
-        } else if (bytes_read == 0) {
-            printf("Server closed connection\n");
+        }
+
+        // Read the score
+        ssize_t bytes_read_score = read(sock_fd, score_buffer, sizeof(score_buffer) - 1);
+        if (bytes_read_score <= 0) {
+            perror("Error reading score from server");
             close(sock_fd);
-            exit(EXIT_SUCCESS);
+            exit(EXIT_FAILURE);
         }
+        score_buffer[bytes_read_score] = '\0';
 
-        if (server_buffer[0] == 'G' && server_buffer[1] == 'O') {
-            printf("Game Over from server.\n");
-            game_over = 1;
-            continue;
-        }
-
-        strncpy(plocha_copy, server_buffer, stlpce * riadky);
-        plocha_copy[stlpce * riadky] = '\0';
-
-        printf("\033[H\033[2J");
+        // Render the game board
+        printf("\033[H\033[J"); // Clear the terminal
         for (int y = 0; y < riadky; y++) {
             for (int x = 0; x < stlpce; x++) {
-                putchar(plocha_copy[y * stlpce + x]);
+                putchar(board_buffer[y * stlpce + x]);
             }
             putchar('\n');
         }
+
+        // Display the score
+        printf("%s\n", score_buffer);
     }
     return NULL;
 }
@@ -89,17 +91,8 @@ int main() {
     printf("Connected to server.\n");
 
     pthread_t input_thread, output_thread;
-    if (pthread_create(&input_thread, NULL, handle_input, NULL) != 0) {
-        perror("Failed to create input thread");
-        close(sock_fd);
-        exit(EXIT_FAILURE);
-    }
-
-    if (pthread_create(&output_thread, NULL, handle_output, NULL) != 0) {
-        perror("Failed to create output thread");
-        close(sock_fd);
-        exit(EXIT_FAILURE);
-    }
+    pthread_create(&input_thread, NULL, handle_input, NULL);
+    pthread_create(&output_thread, NULL, handle_output, NULL);
 
     pthread_join(input_thread, NULL);
     pthread_join(output_thread, NULL);
