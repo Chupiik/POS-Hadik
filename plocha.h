@@ -1,15 +1,26 @@
 #ifndef PLOCHA_H
 #define PLOCHA_H
 
-#define riadky 30
-#define stlpce 60
-#define pocet_jedla 20
+#define MAX_RIADKY 100
+#define MAX_STLPCE 100
+#define MAX_JEDLO 100
 
-struct Plocha {
-    char policko[stlpce * riadky];
+struct Jedlo {
+    int x, y;
+    int zjedene;
 };
 
-void napln_plochu(struct Plocha*);
-void reset_cursor(void);
+struct Plocha {
+    int riadky;
+    int stlpce;
+    int pocet_jedla;
+    char policko[MAX_RIADKY * MAX_STLPCE];
+	struct Jedlo jedlo[MAX_JEDLO];
+};
 
-#endif // PLOCHA_H
+void inicializuj_plochu(struct Plocha* plocha, int riadky, int stlpce, int pocet_jedla);
+void nastav_jedlo(struct Plocha* plocha);
+void vykresli_jedlo(struct Plocha* plocha);
+void napln_plochu(struct Plocha* plocha);
+
+#endif 

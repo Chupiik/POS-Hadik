@@ -3,16 +3,17 @@
 
 #include "snake.h"
 #include "plocha.h"
+#include <pthread.h>
 
-struct Jedlo {
-    int x, y;
-    int zjedene;
+struct Hra {
+    struct Plocha plocha;
+    pthread_mutex_t game_mutex;
 };
 
-void nastav_snake(struct Snake *snake);
-void nastav_jedlo(struct Jedlo jedlo[pocet_jedla]);
-void vykresli_jedlo(struct Jedlo jedlo[pocet_jedla], struct Plocha* plocha);
-void pravidla_hry(struct Snake *snake, struct Jedlo jedlo[pocet_jedla], struct Plocha* plocha, int *jeGameOver);
+void init_hra(struct Hra* hra, int riadky, int stlpce, int pocet_jedla);
+
+void nastav_snake(struct Snake *snake, struct Hra *hra);
+void pravidla_hry(struct Snake *snake, struct Hra* hra, int *jeGameOver);
 void vykonaj_pohyb(char input, struct Snake *snake);
 
 #endif // HRA_H

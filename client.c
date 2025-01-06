@@ -6,52 +6,58 @@
 #include <pthread.h>
 #include "plocha.h"
 #include "input.h"
+#include "client.h"
 
 #define SERVER_IP "127.0.0.1"
 #define PORT 55000
 
-int sock_fd;
+int client_fd;
 int game_over = 0;
+int riadky;
+int stlpce;
 
 void* handle_input(void* arg) {
     while (!game_over) {
         char input = vrat_klavesu();
         if (input != -1) {
-            if (write(sock_fd, &input, 1) < 0) {
+            if (write(client_fd, &input, 1) < 0) {
                 perror("Error writing to server");
-                close(sock_fd);
+                close(client_fd);
                 exit(EXIT_FAILURE);
             }
         }
-        usleep(50000); // Prevent excessive CPU usage
+        usleep(50000); 
     }
     return NULL;
 }
 
 void* handle_output(void* arg) {
-    char board_buffer[stlpce * riadky];
+    char board_buffer[MAX_RIADKY * MAX_STLPCE];
     char score_buffer[50];
 
     while (!game_over) {
-        // Read the board
-        ssize_t bytes_read_board = read(sock_fd, board_buffer, sizeof(board_buffer));
+        ssize_t bytes_read_board = read(client_fd, board_buffer, sizeof(board_buffer));
+		if (board_buffer[0] == 'G' &&board_buffer[1] == 'O') {
+			printf("Game Over");
+            close(client_fd);
+            exit(EXIT_FAILURE);
+		}
         if (bytes_read_board <= 0) {
             perror("Error reading board from server");
-            close(sock_fd);
+            close(client_fd);
             exit(EXIT_FAILURE);
         }
-
-        // Read the score
-        ssize_t bytes_read_score = read(sock_fd, score_buffer, sizeof(score_buffer) - 1);
+		//board_buffer[bytes_read_board] = '\0';
+        
+        ssize_t bytes_read_score = read(client_fd, score_buffer, sizeof(score_buffer) - 1);
         if (bytes_read_score <= 0) {
             perror("Error reading score from server");
-            close(sock_fd);
+            close(client_fd);
             exit(EXIT_FAILURE);
         }
         score_buffer[bytes_read_score] = '\0';
 
-        // Render the game board
-        printf("\033[H\033[J"); // Clear the terminal
+        printf("\033[H\033[J"); 
         for (int y = 0; y < riadky; y++) {
             for (int x = 0; x < stlpce; x++) {
                 putchar(board_buffer[y * stlpce + x]);
@@ -59,17 +65,16 @@ void* handle_output(void* arg) {
             putchar('\n');
         }
 
-        // Display the score
         printf("%s\n", score_buffer);
     }
     return NULL;
 }
 
-int main() {
+int main_client() {
     struct sockaddr_in server_addr;
 
-    sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock_fd < 0) {
+    client_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_fd < 0) {
         perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
@@ -78,17 +83,27 @@ int main() {
     server_addr.sin_port = htons(PORT);
     if (inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr) <= 0) {
         perror("Invalid address");
-        close(sock_fd);
+        close(client_fd);
         exit(EXIT_FAILURE);
     }
 
-    if (connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+    if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection failed");
-        close(sock_fd);
+        close(client_fd);
         exit(EXIT_FAILURE);
     }
 
     printf("Connected to server.\n");
+	int velkost_plochy[2];
+	ssize_t bytes_read_size = read(client_fd, velkost_plochy, sizeof(int) * 2);
+	if (bytes_read_size <= 0) {
+		perror("Error reading score from server");
+		close(client_fd);
+		exit(EXIT_FAILURE);
+	}
+	riadky = velkost_plochy[0];
+	stlpce = velkost_plochy[1];
+	printf("Board size read.\n");
 
     pthread_t input_thread, output_thread;
     pthread_create(&input_thread, NULL, handle_input, NULL);
@@ -98,6 +113,6 @@ int main() {
     pthread_join(output_thread, NULL);
 
     printf("Game Over, closing connection.\n");
-    close(sock_fd);
+    close(client_fd);
     return 0;
 }

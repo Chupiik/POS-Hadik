@@ -4,7 +4,7 @@
 #include <fcntl.h>
 #include "input.h"
 
-int vrat_klavesu(void) {
+int vrat_klavesu() {
     struct termios oldt, newt;
     int ch, oldf;
 

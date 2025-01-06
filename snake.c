@@ -3,9 +3,9 @@
 
 void vykresli_snake(struct Snake* snake, struct Plocha* plocha) {
     for (int i = snake->dlzka - 1; i > 0; i--) {
-        plocha->policko[snake->cast[i].y * stlpce + snake->cast[i].x] = 'O';
+        plocha->policko[snake->cast[i].y * plocha->stlpce + snake->cast[i].x] = 'O';
     }
-    plocha->policko[snake->cast[0].y * stlpce + snake->cast[0].x] = '@';
+    plocha->policko[snake->cast[0].y * plocha->stlpce + snake->cast[0].x] = '@';
 }
 
 void pohni_snake(struct Snake *snake) {

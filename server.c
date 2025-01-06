@@ -8,23 +8,24 @@
 #include <errno.h>
 #include <fcntl.h>
 #include "snake.h"
-#include "plocha.h"
 #include "hra.h"
+#include "server.h"
+
 
 #define PORT 55000
 #define MAX_CLIENTS 10
+
+struct Hra game;
 
 struct ClientData {
     int fd;
     struct Snake snake;
     int jeGameOver;
     pthread_t thread;
+	pthread_mutex_t game_mutex;
 };
 
 struct ClientData clients[MAX_CLIENTS];
-struct Jedlo jedlo[pocet_jedla];
-struct Plocha plocha;
-pthread_mutex_t game_mutex;
 
 void* client_thread(void* arg) {
     struct ClientData* client = (struct ClientData*)arg;
@@ -33,41 +34,39 @@ void* client_thread(void* arg) {
     while (!client->jeGameOver) {
         read(client->fd, &input, 1);
         
-		pthread_mutex_lock(&game_mutex);
+		pthread_mutex_lock(&client->game_mutex);
 
 		vykonaj_pohyb(input, &client->snake);
 		pohni_snake(&client->snake);
-		pravidla_hry(&client->snake, jedlo, &plocha, &client->jeGameOver);
+		pravidla_hry(&client->snake, &game, &client->jeGameOver);
 
-		napln_plochu(&plocha);
-		vykresli_jedlo(jedlo, &plocha);
+		napln_plochu(&game.plocha);
+		vykresli_jedlo(&game.plocha);
 		for (int i = 0; i < MAX_CLIENTS; i++) {
 			if (clients[i].fd > 0 && !clients[i].jeGameOver) {
-				vykresli_snake(&clients[i].snake, &plocha);
+				vykresli_snake(&clients[i].snake, &game.plocha);
 			}
 		}
 
-		// Send game board
-		if (write(client->fd, plocha.policko, sizeof(char) * stlpce * riadky) < 0) {
+		if (write(client->fd, game.plocha.policko, sizeof(char) * MAX_STLPCE * MAX_RIADKY) < 0) {
 			perror("Error writing board to client");
 			close(client->fd);
 			client->fd = -1;
-			pthread_mutex_unlock(&game_mutex);
+			pthread_mutex_unlock(&client->game_mutex);
 			break;
 		}
 
-		// Send score
 		char score_message[50];
 		snprintf(score_message, sizeof(score_message), "Score: %d", client->snake.dlzka);
 		if (write(client->fd, score_message, strlen(score_message)) < 0) {
 			perror("Error writing score to client");
 			close(client->fd);
 			client->fd = -1;
-			pthread_mutex_unlock(&game_mutex);
+			pthread_mutex_unlock(&client->game_mutex);
 			break;
 		}
 
-		pthread_mutex_unlock(&game_mutex);
+		pthread_mutex_unlock(&client->game_mutex);
 	
 
         usleep(300000);
@@ -78,12 +77,14 @@ void* client_thread(void* arg) {
     return NULL;
 }
 
-int main() {
+int main_server(int riadky, int stlpce, int pocet_jedla) {
+	init_hra(&game, riadky, stlpce, pocet_jedla);
+	
     int server_fd, new_client;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
-    pthread_mutex_init(&game_mutex, NULL);
+    pthread_mutex_init(&game.game_mutex, NULL);
 
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -114,7 +115,6 @@ int main() {
     }
 
     srand(time(0));
-    nastav_jedlo(jedlo);
 
     while (1) {
         new_client = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
@@ -135,7 +135,7 @@ int main() {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (clients[i].fd == -1) {
                 clients[i].fd = new_client;
-                nastav_snake(&clients[i].snake);
+                nastav_snake(&clients[i].snake, &game);
                 clients[i].jeGameOver = 0;
 
                 printf("Server - client %d connected\n", i);
@@ -144,6 +144,17 @@ int main() {
                     close(new_client);
                     clients[i].fd = -1;
                 } else {
+					int velkost_plochy[2];
+					velkost_plochy[0] = game.plocha.riadky;
+					velkost_plochy[1] = game.plocha.stlpce;
+					if (write(clients[i].fd, velkost_plochy, sizeof(int) *2) < 0) {
+						perror("Error writing board size to client");
+						close(clients[i].fd);
+						clients[i].fd = -1;
+						break;
+					}
+					printf("Sent board sizes to client\n");
+					clients[i].game_mutex = game.game_mutex;
                     assigned = 1;
                 }
                 break;
@@ -157,6 +168,6 @@ int main() {
     }
 
     close(server_fd);
-    pthread_mutex_destroy(&game_mutex);
+    pthread_mutex_destroy(&game.game_mutex);
     return 0;
 }
