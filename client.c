@@ -103,7 +103,7 @@ int main_client() {
 	}
 	riadky = velkost_plochy[0];
 	stlpce = velkost_plochy[1];
-	printf("Board size read.\n");
+	printf("Board size read. %d %d\n", riadky, stlpce);
 
     pthread_t input_thread, output_thread;
     pthread_create(&input_thread, NULL, handle_input, NULL);

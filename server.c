@@ -1,31 +1,52 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <pthread.h>
-#include <time.h>
-#include <errno.h>
-#include <fcntl.h>
-#include "snake.h"
-#include "hra.h"
 #include "server.h"
 
+void pause_game(struct Hra* game) {
+    pthread_mutex_lock(game->game_mutex);
+	game->isPaused = 1;
+    printf("Game paused.\n");
+}
 
-#define PORT 55000
-#define MAX_CLIENTS 10
+void unpause_game(struct Hra* game) {
+    printf("Game unpaused.\n");
+	game->isPaused = 0;
+    pthread_mutex_unlock(game->game_mutex);
+}
 
-struct Hra game;
+void pause_game_for_seconds(int seconds, struct Hra* game) {
+    pause_game(game);
+    sleep(seconds);
+    unpause_game(game);
+}
 
-struct ClientData {
-    int fd;
-    struct Snake snake;
-    int jeGameOver;
-    pthread_t thread;
-	pthread_mutex_t game_mutex;
-};
+void send_info_to_player(struct ClientData* client, char score_message[50]) {
+	pthread_mutex_lock(client->server->game->game_mutex);
+	napln_plochu(&client->server->game->plocha);
+		vykresli_jedlo(&client->server->game->plocha);
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			if (client->server->clients[i].fd > 0 && !client->server->clients[i].jeGameOver) {
+				vykresli_snake(&client->server->clients[i].snake, &client->server->game->plocha);
+			}
+		}
 
-struct ClientData clients[MAX_CLIENTS];
+		if (write(client->fd, client->server->game->plocha.policko, sizeof(char) * MAX_STLPCE * MAX_RIADKY) < 0) {
+			perror("Error writing board to client");
+			close(client->fd);
+			client->fd = -1;
+			pthread_mutex_unlock(client->server->game->game_mutex);
+			return;
+		}
+
+		if (write(client->fd, score_message, strlen(score_message)) < 0) {
+			perror("Error writing score to client");
+			close(client->fd);
+			client->fd = -1;
+			pthread_mutex_unlock(client->server->game->game_mutex);
+			return;
+		}
+
+		pthread_mutex_unlock(client->server->game->game_mutex);
+}
+
 
 void* client_thread(void* arg) {
     struct ClientData* client = (struct ClientData*)arg;
@@ -34,39 +55,16 @@ void* client_thread(void* arg) {
     while (!client->jeGameOver) {
         read(client->fd, &input, 1);
         
-		pthread_mutex_lock(&client->game_mutex);
+		pthread_mutex_lock(client->server->game->game_mutex);
 
 		vykonaj_pohyb(input, &client->snake);
 		pohni_snake(&client->snake);
-		pravidla_hry(&client->snake, &game, &client->jeGameOver);
-
-		napln_plochu(&game.plocha);
-		vykresli_jedlo(&game.plocha);
-		for (int i = 0; i < MAX_CLIENTS; i++) {
-			if (clients[i].fd > 0 && !clients[i].jeGameOver) {
-				vykresli_snake(&clients[i].snake, &game.plocha);
-			}
-		}
-
-		if (write(client->fd, game.plocha.policko, sizeof(char) * MAX_STLPCE * MAX_RIADKY) < 0) {
-			perror("Error writing board to client");
-			close(client->fd);
-			client->fd = -1;
-			pthread_mutex_unlock(&client->game_mutex);
-			break;
-		}
-
+		pravidla_hry(&client->snake, client->server->game, &client->jeGameOver);
+		pthread_mutex_unlock(client->server->game->game_mutex);
+		
 		char score_message[50];
 		snprintf(score_message, sizeof(score_message), "Score: %d", client->snake.dlzka);
-		if (write(client->fd, score_message, strlen(score_message)) < 0) {
-			perror("Error writing score to client");
-			close(client->fd);
-			client->fd = -1;
-			pthread_mutex_unlock(&client->game_mutex);
-			break;
-		}
-
-		pthread_mutex_unlock(&client->game_mutex);
+		send_info_to_player(client, score_message);
 	
 
         usleep(300000);
@@ -78,13 +76,15 @@ void* client_thread(void* arg) {
 }
 
 int main_server(int riadky, int stlpce, int pocet_jedla) {
+	struct Hra game;
 	init_hra(&game, riadky, stlpce, pocet_jedla);
+	
+	struct Server server;
+	server.game = &game;
 	
     int server_fd, new_client;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
-
-    pthread_mutex_init(&game.game_mutex, NULL);
 
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -111,7 +111,7 @@ int main_server(int riadky, int stlpce, int pocet_jedla) {
     printf("Server listening on port %d\n", PORT);
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
-        clients[i].fd = -1;
+        server.clients[i].fd = -1;
     }
 
     srand(time(0));
@@ -133,29 +133,33 @@ int main_server(int riadky, int stlpce, int pocet_jedla) {
 
         int assigned = 0;
         for (int i = 0; i < MAX_CLIENTS; i++) {
-            if (clients[i].fd == -1) {
-                clients[i].fd = new_client;
-                nastav_snake(&clients[i].snake, &game);
-                clients[i].jeGameOver = 0;
+            if (server.clients[i].fd == -1) {
+                server.clients[i].fd = new_client;
+                nastav_snake(&server.clients[i].snake, &game);
+                server.clients[i].jeGameOver = 0;
 
                 printf("Server - client %d connected\n", i);
-                if (pthread_create(&clients[i].thread, NULL, client_thread, &clients[i]) != 0) {
+                if (pthread_create(&server.clients[i].thread, NULL, client_thread, &server.clients[i]) != 0) {
                     perror("Thread creation failed");
                     close(new_client);
-                    clients[i].fd = -1;
+                    server.clients[i].fd = -1;
                 } else {
 					int velkost_plochy[2];
 					velkost_plochy[0] = game.plocha.riadky;
 					velkost_plochy[1] = game.plocha.stlpce;
-					if (write(clients[i].fd, velkost_plochy, sizeof(int) *2) < 0) {
+					if (write(server.clients[i].fd, velkost_plochy, sizeof(int) *2) < 0) {
 						perror("Error writing board size to client");
-						close(clients[i].fd);
-						clients[i].fd = -1;
+						close(server.clients[i].fd);
+						server.clients[i].fd = -1;
 						break;
 					}
 					printf("Sent board sizes to client\n");
-					clients[i].game_mutex = game.game_mutex;
+					server.clients[i].server = &server;
                     assigned = 1;
+					char score_message[50];
+					snprintf(score_message, sizeof(score_message), "GAME PAUSED. Score: %d", server.clients[i].snake.dlzka);
+					send_info_to_player(&server.clients[i], score_message);
+					pause_game_for_seconds(3, &game);
                 }
                 break;
             }
@@ -168,6 +172,6 @@ int main_server(int riadky, int stlpce, int pocet_jedla) {
     }
 
     close(server_fd);
-    pthread_mutex_destroy(&game.game_mutex);
+    pthread_mutex_destroy(game.game_mutex);
     return 0;
 }

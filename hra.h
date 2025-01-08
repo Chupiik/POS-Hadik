@@ -1,13 +1,17 @@
 #ifndef HRA_H
 #define HRA_H
-
-#include "snake.h"
+#include "server.h"
 #include "plocha.h"
+#include "snake.h"
 #include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
 struct Hra {
     struct Plocha plocha;
-    pthread_mutex_t game_mutex;
+	int isPaused;
+    pthread_mutex_t* game_mutex;
 };
 
 void init_hra(struct Hra* hra, int riadky, int stlpce, int pocet_jedla);
