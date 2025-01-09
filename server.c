@@ -47,32 +47,55 @@ void send_info_to_player(struct ClientData* client, char score_message[50]) {
 		pthread_mutex_unlock(client->server->game->game_mutex);
 }
 
+void send_info_to_all_players(struct Server* server, char score_message[50]) {
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		if (server->clients[i].fd != -1) {
+			send_info_to_player(&server->clients[i], score_message);
+		}
+	}
+}
+
 
 void* client_thread(void* arg) {
     struct ClientData* client = (struct ClientData*)arg;
     char input;
 
-    while (!client->jeGameOver) {
-        read(client->fd, &input, 1);
-        
-		pthread_mutex_lock(client->server->game->game_mutex);
-
-		vykonaj_pohyb(input, &client->snake);
-		pohni_snake(&client->snake, &client->server->game->plocha);
-		pravidla_hry(&client->snake, client->server->game, &client->jeGameOver);
-		pthread_mutex_unlock(client->server->game->game_mutex);
+	while (1) {
+		read(client->fd, &input, 1);
+		if (input == 'x' || input == 'X') {
+			close(client->fd);
+			client->fd = -1;
+			return NULL;
+		}
+		if (input == 'r' || input == 'R') {
+			nastav_snake(&client->snake, client->server->game);
+            client->jeGameOver = 0;
+			char restart_info[50];
+			snprintf(restart_info, sizeof(restart_info), "GAME PAUSED");
+			send_info_to_all_players(client->server, restart_info);
+			pause_game_for_seconds(3, client->server->game);
+		}
 		
-		char score_message[50];
-		snprintf(score_message, sizeof(score_message), "Score: %d", client->snake.dlzka);
-		send_info_to_player(client, score_message);
-	
+		if (!client->jeGameOver) {
+			pthread_mutex_lock(client->server->game->game_mutex);
 
-        usleep(300000);
-    }
-
-    close(client->fd);
-    client->fd = -1;
-    return NULL;
+			vykonaj_pohyb(input, &client->snake);
+			pohni_snake(&client->snake, &client->server->game->plocha);
+			pravidla_hry(&client->snake, client->server->game, &client->jeGameOver);
+			pthread_mutex_unlock(client->server->game->game_mutex);
+		}
+		
+		if (client->jeGameOver) {
+			char score_message[50];
+			snprintf(score_message, sizeof(score_message), "GAME OVER - Score: %d", client->snake.dlzka);
+			send_info_to_player(client, score_message);
+		} else {
+			char score_message[50];
+			snprintf(score_message, sizeof(score_message), "Score: %d", client->snake.dlzka);
+			send_info_to_player(client, score_message);
+		}
+		usleep(300000);
+	}
 }
 
 int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
@@ -156,8 +179,8 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
 					server.clients[i].server = &server;
                     assigned = 1;
 					char score_message[50];
-					snprintf(score_message, sizeof(score_message), "GAME PAUSED. Score: %d", server.clients[i].snake.dlzka);
-					send_info_to_player(&server.clients[i], score_message);
+					snprintf(score_message, sizeof(score_message), "GAME PAUSED");
+					send_info_to_all_players(&server, score_message);
 					pause_game_for_seconds(3, &game);
                 }
                 break;

@@ -64,8 +64,13 @@ void* handle_output(void* arg) {
             }
             putchar('\n');
         }
-
         printf("%s\n", score_buffer);
+		
+		char game_over_message[50];
+		snprintf(game_over_message, sizeof(game_over_message), "GAME OVER");
+		if (strncmp(score_buffer, game_over_message, 9) == 0) {
+			printf("PRESS R TO RESPAWN", score_buffer);
+		}
     }
     return NULL;
 }
