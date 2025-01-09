@@ -30,7 +30,7 @@ struct Server {
 };
 
 
-int main_server(int riadky, int stlpce, int pocet_jedla);
+int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy);
 void* client_thread(void* arg);
 
 #endif // SERVER_H

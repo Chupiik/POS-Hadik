@@ -14,7 +14,7 @@ struct Hra {
     pthread_mutex_t* game_mutex;
 };
 
-void init_hra(struct Hra* hra, int riadky, int stlpce, int pocet_jedla);
+void init_hra(struct Hra* hra, int riadky, int stlpce, int pocet_jedla, int typ_plochy);
 
 void nastav_snake(struct Snake *snake, struct Hra *hra);
 void pravidla_hry(struct Snake *snake, struct Hra* hra, int *jeGameOver);

@@ -19,8 +19,8 @@ void pause_game_for_seconds(int seconds, struct Hra* game) {
 }
 
 void send_info_to_player(struct ClientData* client, char score_message[50]) {
-	pthread_mutex_lock(client->server->game->game_mutex);
-	napln_plochu(&client->server->game->plocha);
+		pthread_mutex_lock(client->server->game->game_mutex);
+		napln_plochu(&client->server->game->plocha);
 		vykresli_jedlo(&client->server->game->plocha);
 		for (int i = 0; i < MAX_CLIENTS; i++) {
 			if (client->server->clients[i].fd > 0 && !client->server->clients[i].jeGameOver) {
@@ -58,7 +58,7 @@ void* client_thread(void* arg) {
 		pthread_mutex_lock(client->server->game->game_mutex);
 
 		vykonaj_pohyb(input, &client->snake);
-		pohni_snake(&client->snake);
+		pohni_snake(&client->snake, &client->server->game->plocha);
 		pravidla_hry(&client->snake, client->server->game, &client->jeGameOver);
 		pthread_mutex_unlock(client->server->game->game_mutex);
 		
@@ -75,9 +75,9 @@ void* client_thread(void* arg) {
     return NULL;
 }
 
-int main_server(int riadky, int stlpce, int pocet_jedla) {
+int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
 	struct Hra game;
-	init_hra(&game, riadky, stlpce, pocet_jedla);
+	init_hra(&game, riadky, stlpce, pocet_jedla, typ_plochy);
 	
 	struct Server server;
 	server.game = &game;
@@ -123,7 +123,6 @@ int main_server(int riadky, int stlpce, int pocet_jedla) {
             continue;
         }
 
-        // Set the new client socket to non-blocking mode
         int flags = fcntl(new_client, F_GETFL, 0);
         if (flags == -1 || fcntl(new_client, F_SETFL, flags | O_NONBLOCK) == -1) {
             perror("Failed to set client socket to non-blocking mode");

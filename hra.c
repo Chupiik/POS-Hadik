@@ -1,8 +1,8 @@
 #include "hra.h"
 
-void init_hra(struct Hra* hra, int riadky, int stlpce, int pocet_jedla) {
+void init_hra(struct Hra* hra, int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
     pthread_mutex_init(hra->game_mutex, NULL);
-	inicializuj_plochu(&hra->plocha, riadky, stlpce, pocet_jedla);
+	inicializuj_plochu(&hra->plocha, riadky, stlpce, pocet_jedla, typ_plochy);
     napln_plochu(&hra->plocha);
 	hra->isPaused= 0;
 }
@@ -23,11 +23,11 @@ void pravidla_hry(struct Snake *snake, struct Hra* hra, int *jeGameOver) {
 				if (!hra->plocha.jedlo[i].zjedene &&
 					hra->plocha.jedlo[i].x == snake->cast[0].x &&
 					hra->plocha.jedlo[i].y == snake->cast[0].y) {
-					hra->plocha.jedlo[i].zjedene = 1;
-					snake->dlzka++;
-					hra->plocha.jedlo[i].x = 1 + rand() % (hra->plocha.stlpce - 2);
-					hra->plocha.jedlo[i].y = 1 + rand() % (hra->plocha.riadky - 2);
-					hra->plocha.jedlo[i].zjedene = 0;
+						hra->plocha.jedlo[i].zjedene = 1;
+						snake->dlzka++;
+						hra->plocha.jedlo[i].x = 1 + rand() % (hra->plocha.stlpce - 2);
+						hra->plocha.jedlo[i].y = 1 + rand() % (hra->plocha.riadky - 2);
+						hra->plocha.jedlo[i].zjedene = 0;
 				}
 			}
 		}
