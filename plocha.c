@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "plocha.h"
 
+
 void inicializuj_plochu(struct Plocha* plocha, int riadky, int stlpce, int pocet_jedla, int typ) {
+	srand(time(NULL));
+	//printf("Inicializacia plochy");
     if (riadky > MAX_RIADKY || stlpce > MAX_STLPCE) {
         fprintf(stderr, "Error: Board size exceeds maximum allowed dimensions (%dx%d).\n", MAX_RIADKY, MAX_STLPCE);
         return;
@@ -13,10 +17,14 @@ void inicializuj_plochu(struct Plocha* plocha, int riadky, int stlpce, int pocet
 		fprintf(stderr, "Error: The number of food exceeds maximum allowed (%d).\n", MAX_JEDLO);
         return;
 	}
+	for (int i = 0; i < MAX_JEDLO; i++) {
+		plocha->jedlo[i].zjedene = 1;
+		plocha->jedlo[i].x = 0;
+		plocha->jedlo[i].y = 0;
+    }
     plocha->pocet_jedla = pocet_jedla;
-	
+	plocha->pocet_aktualneho_jedla = 0;
 	nastav_level(plocha, typ);
-	
 	nastav_jedlo(plocha);
 }
 
@@ -51,18 +59,44 @@ void napln_plochu(struct Plocha* plocha) {
     }
 }
 
+void random_nove_jedlo(struct Plocha* plocha) {
+	if (plocha->pocet_aktualneho_jedla < plocha->pocet_jedla) {
+		int x;
+		int y;
+		do {
+			x = rand() % (plocha->stlpce - 1) + 1;
+			y = rand() % (plocha->riadky - 1) + 1;
+		} while (plocha->level[y * plocha->stlpce + x] == '#');
+		//printf("1 jedlo vygenerovane x-%d y-%d\n",x,y);
+		nove_jedlo(plocha, x, y);
+	}
+}
+
+void nove_jedlo(struct Plocha* plocha, int x, int y) {
+	for (int i = 0; i < MAX_JEDLO; i++) {
+		if (plocha->jedlo[i].zjedene == 1) {
+			plocha->jedlo[i].x = x;
+			plocha->jedlo[i].y = y;
+			plocha->jedlo[i].zjedene = 0;
+			plocha->pocet_aktualneho_jedla++;
+			break;
+		}
+    }
+}
+
 void nastav_jedlo(struct Plocha* plocha) {
     for (int i = 0; i < plocha->pocet_jedla; i++) {
-			plocha->jedlo[i].x = 1 + rand() % (plocha->stlpce - 2);
-			plocha->jedlo[i].y = 1 + rand() % (plocha->riadky - 2);
-			plocha->jedlo[i].zjedene = 0;
+		//printf("Pocet jedlo: %d/%d \n",plocha->pocet_aktualneho_jedla, plocha->pocet_jedla);
+		random_nove_jedlo(plocha);
+		//printf("Nove jedlo");
     }
 }
 
 void vykresli_jedlo(struct Plocha* plocha) {
-    for (int i = 0; i < plocha->pocet_jedla; i++) {
-        if (!plocha->jedlo[i].zjedene) {
+    for (int i = 0; i < MAX_JEDLO; i++) {
+        if (!plocha->jedlo[i].zjedene) {		
             plocha->policko[plocha->jedlo[i].y * plocha->stlpce + plocha->jedlo[i].x] = '+';
+			//printf("1 jedlo vykreslene x-%d y-%d i-%d\n",plocha->jedlo[i].x,plocha->jedlo[i].y, i);
         }
     }
 }

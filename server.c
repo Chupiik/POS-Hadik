@@ -1,7 +1,7 @@
 #include "server.h"
 
 void pause_game(struct Hra* game) {
-    pthread_mutex_lock(game->game_mutex);
+    pthread_mutex_lock(&game->game_mutex);
 	game->isPaused = 1;
     printf("Game paused.\n");
 }
@@ -9,7 +9,7 @@ void pause_game(struct Hra* game) {
 void unpause_game(struct Hra* game) {
     printf("Game unpaused.\n");
 	game->isPaused = 0;
-    pthread_mutex_unlock(game->game_mutex);
+    pthread_mutex_unlock(&game->game_mutex);
 }
 
 void pause_game_for_seconds(int seconds, struct Hra* game) {
@@ -19,20 +19,24 @@ void pause_game_for_seconds(int seconds, struct Hra* game) {
 }
 
 void send_info_to_player(struct ClientData* client, char score_message[50]) {
-		pthread_mutex_lock(client->server->game->game_mutex);
+		printf("Before lock\n");
+		pthread_mutex_lock(&client->server->game->game_mutex);
+		printf("After lock\n");
 		napln_plochu(&client->server->game->plocha);
+		printf("After napln plochu\n");
 		vykresli_jedlo(&client->server->game->plocha);
+		printf("After vykresli jedlo\n");
 		for (int i = 0; i < MAX_CLIENTS; i++) {
 			if (client->server->clients[i].fd > 0 && !client->server->clients[i].jeGameOver) {
 				vykresli_snake(&client->server->clients[i].snake, &client->server->game->plocha);
 			}
 		}
-
+		printf("After Vsetko vykreslene\n");
 		if (write(client->fd, client->server->game->plocha.policko, sizeof(char) * MAX_STLPCE * MAX_RIADKY) < 0) {
 			perror("Error writing board to client");
 			close(client->fd);
 			client->fd = -1;
-			pthread_mutex_unlock(client->server->game->game_mutex);
+			pthread_mutex_unlock(&client->server->game->game_mutex);
 			return;
 		}
 
@@ -40,11 +44,11 @@ void send_info_to_player(struct ClientData* client, char score_message[50]) {
 			perror("Error writing score to client");
 			close(client->fd);
 			client->fd = -1;
-			pthread_mutex_unlock(client->server->game->game_mutex);
+			pthread_mutex_unlock(&client->server->game->game_mutex);
 			return;
 		}
 
-		pthread_mutex_unlock(client->server->game->game_mutex);
+		pthread_mutex_unlock(&client->server->game->game_mutex);
 }
 
 void send_info_to_all_players(struct Server* server, char score_message[50]) {
@@ -77,15 +81,16 @@ void* client_thread(void* arg) {
 		}
 		
 		if (!client->jeGameOver) {
-			pthread_mutex_lock(client->server->game->game_mutex);
+			pthread_mutex_lock(&client->server->game->game_mutex);
 
 			vykonaj_pohyb(input, &client->snake);
 			pohni_snake(&client->snake, &client->server->game->plocha);
 			pravidla_hry(&client->snake, client->server->game, &client->jeGameOver);
-			pthread_mutex_unlock(client->server->game->game_mutex);
+			pthread_mutex_unlock(&client->server->game->game_mutex);
 		}
 		
 		if (client->jeGameOver) {
+			
 			char score_message[50];
 			snprintf(score_message, sizeof(score_message), "GAME OVER - Score: %d", client->snake.dlzka);
 			send_info_to_player(client, score_message);
@@ -178,6 +183,7 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
 					printf("Sent board sizes to client\n");
 					server.clients[i].server = &server;
                     assigned = 1;
+					printf("Assigned\n");
 					char score_message[50];
 					snprintf(score_message, sizeof(score_message), "GAME PAUSED");
 					send_info_to_all_players(&server, score_message);
@@ -194,6 +200,6 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
     }
 
     close(server_fd);
-    pthread_mutex_destroy(game.game_mutex);
+    pthread_mutex_destroy(&game.game_mutex);
     return 0;
 }
