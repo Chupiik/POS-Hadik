@@ -3,4 +3,4 @@
 
 int vrat_klavesu();
 
-#endif // INPUT_H
+#endif

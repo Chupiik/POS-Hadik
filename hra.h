@@ -21,4 +21,4 @@ void pravidla_hry(struct Snake *snake, struct Hra* hra, int *jeGameOver);
 void vykonaj_pohyb(char input, struct Snake *snake);
 void zjedz_jedlo(struct Plocha* plocha,struct Snake* snake, int index_jedla);
 
-#endif // HRA_H
+#endif

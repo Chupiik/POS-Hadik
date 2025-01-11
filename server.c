@@ -19,36 +19,36 @@ void pause_game_for_seconds(int seconds, struct Hra* game) {
 }
 
 void send_info_to_player(struct ClientData* client, char score_message[50]) {
-		printf("Before lock\n");
-		pthread_mutex_lock(&client->server->game->game_mutex);
-		printf("After lock\n");
-		napln_plochu(&client->server->game->plocha);
-		printf("After napln plochu\n");
-		vykresli_jedlo(&client->server->game->plocha);
-		printf("After vykresli jedlo\n");
-		for (int i = 0; i < MAX_CLIENTS; i++) {
-			if (client->server->clients[i].fd > 0 && !client->server->clients[i].jeGameOver) {
-				vykresli_snake(&client->server->clients[i].snake, &client->server->game->plocha);
-			}
+	//printf("Before lock\n");
+	pthread_mutex_lock(&client->server->game->game_mutex);
+	//printf("After lock\n");
+	napln_plochu(&client->server->game->plocha);
+	//printf("After napln plochu\n");
+	vykresli_jedlo(&client->server->game->plocha);
+	//printf("After vykresli jedlo\n");
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		if (client->server->clients[i].fd > 0 && !client->server->clients[i].jeGameOver) {
+			vykresli_snake(&client->server->clients[i].snake, &client->server->game->plocha);
 		}
-		printf("After Vsetko vykreslene\n");
-		if (write(client->fd, client->server->game->plocha.policko, sizeof(char) * MAX_STLPCE * MAX_RIADKY) < 0) {
-			perror("Error writing board to client");
-			close(client->fd);
-			client->fd = -1;
-			pthread_mutex_unlock(&client->server->game->game_mutex);
-			return;
-		}
-
-		if (write(client->fd, score_message, strlen(score_message)) < 0) {
-			perror("Error writing score to client");
-			close(client->fd);
-			client->fd = -1;
-			pthread_mutex_unlock(&client->server->game->game_mutex);
-			return;
-		}
-
+	}
+	//printf("After Vsetko vykreslene\n");
+	if (send(client->fd, client->server->game->plocha.policko, sizeof(char) * MAX_STLPCE * MAX_RIADKY, 0) < 0) {
+		perror("Error sending board to client");
+		close(client->fd);
+		client->fd = -1;
 		pthread_mutex_unlock(&client->server->game->game_mutex);
+		return;
+	}
+
+	if (send(client->fd, score_message, strlen(score_message), 0) < 0) {
+		perror("Error sending score to client");
+		close(client->fd);
+		client->fd = -1;
+		pthread_mutex_unlock(&client->server->game->game_mutex);
+		return;
+	}
+
+	pthread_mutex_unlock(&client->server->game->game_mutex);
 }
 
 void send_info_to_all_players(struct Server* server, char score_message[50]) {
@@ -71,12 +71,11 @@ void exit_check(struct Server* server) {
 	}
 }
 
-
 void* client_thread(void* arg) {
     struct ClientData* client = (struct ClientData*)arg;
     char input;
 	while (1) {
-		read(client->fd, &input, 1);
+		recv(client->fd, &input, 1, 0);
 		if (input == 'x' || input == 'X') {
 			char exit_info[50];
 			snprintf(exit_info, sizeof(exit_info), "EXIT");
@@ -193,17 +192,17 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
 						int velkost_plochy[2];
 						velkost_plochy[0] = game.plocha.riadky;
 						velkost_plochy[1] = game.plocha.stlpce;
-						if (write(server.clients[i].fd, velkost_plochy, sizeof(int) *2) < 0) {
-							perror("Error writing board size to client");
+						if (send(server.clients[i].fd, velkost_plochy, sizeof(int) *2, 0) < 0) {
+							perror("Error sending board size to client");
 							close(server.clients[i].fd);
 							server.clients[i].fd = -1;
 							break;
 						}
-						printf("Sent board sizes to client\n");
+						//printf("Sent board sizes to client\n");
 						server.clients[i].server = &server;
 						assigned = 1;
 						(*server.pocetKlientov)++;
-						printf("Assigned\n");
+						//printf("Assigned\n");
 						char score_message[50];
 						snprintf(score_message, sizeof(score_message), "GAME PAUSED");
 						send_info_to_all_players(&server, score_message);
@@ -223,8 +222,9 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
         if (*server.pocetKlientov == 0) {
             no_player_count++;
 
-            if (no_player_count >= 10) { // ~5 seconds (10 * 0.5s)
-                printf("No players joined within the timeout period. Shutting down server \n");
+            if (no_player_count >= 10)
+			{
+                printf("No players joined within the timeout. Shutting down server \n");
                 break;
             }
         } else {
@@ -233,7 +233,6 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
     }
 
 	for (int i = 0; i < MAX_CLIENTS; i++) {
-		//printf("Ending thread \n");
 		if (server.clients[i].fd == FD_ASSIGNED) {
 			pthread_join(server.clients[i].thread, NULL);
 		}

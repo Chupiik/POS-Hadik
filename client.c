@@ -17,8 +17,8 @@ void* handle_input(void* arg) {
 	while(*clientInfo->gameOver == 0) {
 		char input = vrat_klavesu();
 		if (input != -1) {
-			if (write(clientInfo->fd, &input, 1) < 0) {
-				perror("Error writing to server");
+			if (send(clientInfo->fd, &input, 1, 0) < 0) {
+				perror("Error sending to server");
 				close(clientInfo->fd);
 				exit(EXIT_FAILURE);
 			}
@@ -34,8 +34,8 @@ void* handle_output(void* arg) {
     char score_buffer[50];
 
 	while(*clientInfo->gameOver == 0) {
-        ssize_t bytes_read_board = read(clientInfo->fd, board_buffer, sizeof(board_buffer));
-		if (board_buffer[0] == 'G' &&board_buffer[1] == 'O') {
+        ssize_t bytes_read_board = recv(clientInfo->fd, board_buffer, sizeof(board_buffer), 0);
+		if (board_buffer[0] == 'G' && board_buffer[1] == 'O') {
 			printf("Game Over");
             close(clientInfo->fd);
             exit(EXIT_FAILURE);
@@ -45,9 +45,8 @@ void* handle_output(void* arg) {
             close(clientInfo->fd);
             exit(EXIT_FAILURE);
         }
-		//board_buffer[bytes_read_board] = '\0';
-        
-        ssize_t bytes_read_score = read(clientInfo->fd, score_buffer, sizeof(score_buffer) - 1);
+
+        ssize_t bytes_read_score = recv(clientInfo->fd, score_buffer, sizeof(score_buffer) - 1, 0);
         if (bytes_read_score <= 0) {
             perror("Error reading score from server");
             close(clientInfo->fd);
@@ -63,7 +62,7 @@ void* handle_output(void* arg) {
             putchar('\n');
         }
         printf("%s\n", score_buffer);
-		
+
 		char game_over_message[50];
 		snprintf(game_over_message, sizeof(game_over_message), "GAME OVER");
 		if (strncmp(score_buffer, game_over_message, 9) == 0) {
@@ -80,7 +79,7 @@ void* handle_output(void* arg) {
 
 int main_client() {
     struct sockaddr_in server_addr;
-	
+
     int client_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (client_fd < 0) {
         perror("Socket creation failed");
@@ -103,7 +102,7 @@ int main_client() {
 
     printf("Connected to server.\n");
 	int velkost_plochy[2];
-	ssize_t bytes_read_size = read(client_fd, velkost_plochy, sizeof(int) * 2);
+	ssize_t bytes_read_size = recv(client_fd, velkost_plochy, sizeof(int) * 2, 0);
 	if (bytes_read_size <= 0) {
 		perror("Error reading score from server");
 		close(client_fd);

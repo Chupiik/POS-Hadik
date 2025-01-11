@@ -64,8 +64,8 @@ void random_nove_jedlo(struct Plocha* plocha) {
 		int x;
 		int y;
 		do {
-			x = rand() % (plocha->stlpce - 1) + 1;
-			y = rand() % (plocha->riadky - 1) + 1;
+			x = rand() % (plocha->stlpce - 2) + 1;
+			y = rand() % (plocha->riadky - 2) + 1;
 		} while (plocha->level[y * plocha->stlpce + x] == '#' || plocha->policko[y * plocha->stlpce + x] == '+');
 		//printf("1 jedlo vygenerovane x-%d y-%d\n",x,y);
 		nove_jedlo(plocha, x, y);
@@ -123,7 +123,7 @@ int flood_fill(int x, int y, int riadky, int stlpce, bool* navstivene, char* lev
 }
 
 void level_random_walls(struct Plocha* plocha) {
-	printf("Started generating \n");
+	//printf("Started generating \n");
     int riadky = plocha->riadky;
     int stlpce = plocha->stlpce;
     char* level = plocha->level;
@@ -151,7 +151,7 @@ void level_random_walls(struct Plocha* plocha) {
     bool* navstivene = calloc(pocet_policok, sizeof(bool));
     int dostupne_policka = flood_fill(1, 1, riadky, stlpce, navstivene, level);
     free(navstivene);
-	printf("Generated map \n");
+	//printf("Generated map \n");
     if (dostupne_policka != pocet_policok - max_steny) {
         level_random_walls(plocha);
     }

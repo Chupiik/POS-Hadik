@@ -12,4 +12,4 @@ void* handle_input(void* arg);
 void* handle_output(void* arg);
 int main_client();
 
-#endif // CLIENT_H
+#endif

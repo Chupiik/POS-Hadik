@@ -16,4 +16,4 @@ struct Snake {
 void vykresli_snake(struct Snake *snake, struct Plocha* plocha);
 void pohni_snake(struct Snake *snake, struct Plocha* plocha);
 
-#endif // SNAKE_H
+#endif 
