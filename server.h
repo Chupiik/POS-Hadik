@@ -1,6 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 #include "hra.h"
+#include "input.h"
 #include "snake.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +12,8 @@
 #include <time.h>
 #include <errno.h>
 #include <fcntl.h>
+
+#define FD_ASSIGNED -10
 
 #define PORT 55000
 #define MAX_CLIENTS 10
@@ -23,10 +26,11 @@ struct ClientData {
 	struct Server* server;
 };
 
-
 struct Server {
 	struct Hra* game;
 	struct ClientData clients[MAX_CLIENTS];
+	int* pocetKlientov;
+	int server_fd;
 };
 
 

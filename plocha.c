@@ -66,7 +66,7 @@ void random_nove_jedlo(struct Plocha* plocha) {
 		do {
 			x = rand() % (plocha->stlpce - 1) + 1;
 			y = rand() % (plocha->riadky - 1) + 1;
-		} while (plocha->level[y * plocha->stlpce + x] == '#');
+		} while (plocha->level[y * plocha->stlpce + x] == '#' || plocha->policko[y * plocha->stlpce + x] == '+');
 		//printf("1 jedlo vygenerovane x-%d y-%d\n",x,y);
 		nove_jedlo(plocha, x, y);
 	}

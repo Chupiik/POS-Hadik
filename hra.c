@@ -50,6 +50,7 @@ void zjedz_jedlo(struct Plocha* plocha,struct Snake* snake, int index_jedla) {
 	snake->cast[snake->dlzka].y = snake->cast[snake->dlzka-1].y;
 	snake->dlzka++;
 	random_nove_jedlo(plocha);
+	printf("Zjedol jedlo.\n");
 }
 
 
@@ -57,8 +58,8 @@ void vykonaj_pohyb(char input, struct Snake *snake){
         switch (input) {
             case 'w': 
 				if (snake->pohybY != 1) {
-					snake->pohybX = 0; 
-					snake->pohybY = -1; 
+					snake->pohybX = 0;
+					snake->pohybY = -1;
 				}
 				break;
             case 's': 

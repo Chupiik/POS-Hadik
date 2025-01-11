@@ -59,16 +59,31 @@ void send_info_to_all_players(struct Server* server, char score_message[50]) {
 	}
 }
 
+void exit_check(struct Server* server) {
+	*server->pocetKlientov = 0;
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		if(server->clients[i].fd != -1) {
+			*server->pocetKlientov++;
+		}
+	}
+	if (*server->pocetKlientov == 0) {
+		close(server->server_fd);
+	}
+}
+
 
 void* client_thread(void* arg) {
     struct ClientData* client = (struct ClientData*)arg;
     char input;
-
 	while (1) {
 		read(client->fd, &input, 1);
 		if (input == 'x' || input == 'X') {
+			char exit_info[50];
+			snprintf(exit_info, sizeof(exit_info), "EXIT");
+			send_info_to_player(client, exit_info);
 			close(client->fd);
-			client->fd = -1;
+			client->fd = FD_ASSIGNED;
+			(*client->server->pocetKlientov)--;
 			return NULL;
 		}
 		if (input == 'r' || input == 'R') {
@@ -90,7 +105,6 @@ void* client_thread(void* arg) {
 		}
 		
 		if (client->jeGameOver) {
-			
 			char score_message[50];
 			snprintf(score_message, sizeof(score_message), "GAME OVER - Score: %d", client->snake.dlzka);
 			send_info_to_player(client, score_message);
@@ -104,12 +118,9 @@ void* client_thread(void* arg) {
 }
 
 int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
-	struct Hra game;
-	init_hra(&game, riadky, stlpce, pocet_jedla, typ_plochy);
-	
-	struct Server server;
-	server.game = &game;
-	
+    struct Hra game;
+    init_hra(&game, riadky, stlpce, pocet_jedla, typ_plochy);
+
     int server_fd, new_client;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
@@ -119,6 +130,9 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
         perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
+
+    int flags = fcntl(server_fd, F_GETFL, 0);
+    fcntl(server_fd, F_SETFL, flags | O_NONBLOCK);
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
@@ -138,67 +152,92 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
 
     printf("Server listening on port %d\n", PORT);
 
+    struct Server server;
+    server.game = &game;
+    server.server_fd = server_fd;
+    int pocetKlientov = 0;
+    server.pocetKlientov = &pocetKlientov;
+
     for (int i = 0; i < MAX_CLIENTS; i++) {
         server.clients[i].fd = -1;
     }
 
-    srand(time(0));
-
+    int no_player_count = 0;
     while (1) {
-        new_client = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
-        if (new_client < 0) {
-            perror("Accept failed");
-            continue;
-        }
+		if (*server.pocetKlientov == 0) {
+			printf("No players connected. Waiting for connections...%d\n", 10 - no_player_count);
+		}
 
-        int flags = fcntl(new_client, F_GETFL, 0);
-        if (flags == -1 || fcntl(new_client, F_SETFL, flags | O_NONBLOCK) == -1) {
-            perror("Failed to set client socket to non-blocking mode");
-            close(new_client);
-            continue;
-        }
+		new_client = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
+	
+		int assigned = 0;
+		if (new_client >= 0) {
+			int flags = fcntl(new_client, F_GETFL, 0);
+			if (flags == -1 || fcntl(new_client, F_SETFL, flags | O_NONBLOCK) == -1) {
+			perror("Failed to set client socket to non-blocking mode");
+			close(new_client);
+			continue;
+			}
+			for (int i = 0; i < MAX_CLIENTS; i++) {
+				if (server.clients[i].fd < 0) {
+					server.clients[i].fd = new_client;
+					nastav_snake(&server.clients[i].snake, &game);
+					server.clients[i].jeGameOver = 0;
 
-        int assigned = 0;
-        for (int i = 0; i < MAX_CLIENTS; i++) {
-            if (server.clients[i].fd == -1) {
-                server.clients[i].fd = new_client;
-                nastav_snake(&server.clients[i].snake, &game);
-                server.clients[i].jeGameOver = 0;
-
-                printf("Server - client %d connected\n", i);
-                if (pthread_create(&server.clients[i].thread, NULL, client_thread, &server.clients[i]) != 0) {
-                    perror("Thread creation failed");
-                    close(new_client);
-                    server.clients[i].fd = -1;
-                } else {
-					int velkost_plochy[2];
-					velkost_plochy[0] = game.plocha.riadky;
-					velkost_plochy[1] = game.plocha.stlpce;
-					if (write(server.clients[i].fd, velkost_plochy, sizeof(int) *2) < 0) {
-						perror("Error writing board size to client");
-						close(server.clients[i].fd);
+					printf("Server - client %d connected\n", i);
+					if (pthread_create(&server.clients[i].thread, NULL, client_thread, &server.clients[i]) != 0) {
+						perror("Thread creation failed");
+						close(new_client);
 						server.clients[i].fd = -1;
-						break;
+					} else {
+						int velkost_plochy[2];
+						velkost_plochy[0] = game.plocha.riadky;
+						velkost_plochy[1] = game.plocha.stlpce;
+						if (write(server.clients[i].fd, velkost_plochy, sizeof(int) *2) < 0) {
+							perror("Error writing board size to client");
+							close(server.clients[i].fd);
+							server.clients[i].fd = -1;
+							break;
+						}
+						printf("Sent board sizes to client\n");
+						server.clients[i].server = &server;
+						assigned = 1;
+						(*server.pocetKlientov)++;
+						printf("Assigned\n");
+						char score_message[50];
+						snprintf(score_message, sizeof(score_message), "GAME PAUSED");
+						send_info_to_all_players(&server, score_message);
+						pause_game_for_seconds(3, &game);
 					}
-					printf("Sent board sizes to client\n");
-					server.clients[i].server = &server;
-                    assigned = 1;
-					printf("Assigned\n");
-					char score_message[50];
-					snprintf(score_message, sizeof(score_message), "GAME PAUSED");
-					send_info_to_all_players(&server, score_message);
-					pause_game_for_seconds(3, &game);
-                }
+					break;
+				}
+			}
+			if (!assigned) {
+			printf("Max clients reached. Connection rejected.\n");
+			close(new_client);
+		}
+		}
+
+        usleep(1000000);
+
+        if (*server.pocetKlientov == 0) {
+            no_player_count++;
+
+            if (no_player_count >= 10) { // ~5 seconds (10 * 0.5s)
+                printf("No players joined within the timeout period. Shutting down server \n");
                 break;
             }
-        }
-
-        if (!assigned) {
-            printf("Max clients reached. Connection rejected.\n");
-            close(new_client);
+        } else {
+            no_player_count = 0;
         }
     }
 
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		//printf("Ending thread \n");
+		if (server.clients[i].fd == FD_ASSIGNED) {
+			pthread_join(server.clients[i].thread, NULL);
+		}
+	}
     close(server_fd);
     pthread_mutex_destroy(&game.game_mutex);
     return 0;
