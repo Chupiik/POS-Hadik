@@ -9,7 +9,6 @@
 #include "client.h"
 
 #define SERVER_IP "127.0.0.1"
-#define PORT 55000
 
 void* handle_input(void* arg) {
 	struct ClientInfo* clientInfo = (struct ClientInfo*) arg;
@@ -77,7 +76,7 @@ void* handle_output(void* arg) {
     return NULL;
 }
 
-int main_client() {
+int main_client(int port) {
     struct sockaddr_in server_addr;
 
     int client_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -87,7 +86,7 @@ int main_client() {
     }
 
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_port = htons(port);
     if (inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr) <= 0) {
         perror("Invalid address");
         close(client_fd);

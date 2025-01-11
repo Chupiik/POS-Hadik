@@ -3,11 +3,11 @@
 void pause_game(struct Hra* game) {
     pthread_mutex_lock(&game->game_mutex);
 	game->isPaused = 1;
-    printf("Game paused.\n");
+    //printf("Game paused.\n");
 }
 
 void unpause_game(struct Hra* game) {
-    printf("Game unpaused.\n");
+    //printf("Game unpaused.\n");
 	game->isPaused = 0;
     pthread_mutex_unlock(&game->game_mutex);
 }
@@ -75,6 +75,7 @@ void* client_thread(void* arg) {
     struct ClientData* client = (struct ClientData*)arg;
     char input;
 	while (1) {
+		input = 0;
 		recv(client->fd, &input, 1, 0);
 		if (input == 'x' || input == 'X') {
 			char exit_info[50];
@@ -89,7 +90,7 @@ void* client_thread(void* arg) {
 			nastav_snake(&client->snake, client->server->game);
             client->jeGameOver = 0;
 			char restart_info[50];
-			snprintf(restart_info, sizeof(restart_info), "GAME PAUSED");
+			snprintf(restart_info, sizeof(restart_info), "GAME PAUSED - Server port: %d", client->server->server_port);
 			send_info_to_all_players(client->server, restart_info);
 			pause_game_for_seconds(3, client->server->game);
 		}
@@ -105,18 +106,18 @@ void* client_thread(void* arg) {
 		
 		if (client->jeGameOver) {
 			char score_message[50];
-			snprintf(score_message, sizeof(score_message), "GAME OVER - Score: %d", client->snake.dlzka);
+			snprintf(score_message, sizeof(score_message), "GAME OVER - Score: %d - Server port: %d", client->snake.dlzka, client->server->server_port);
 			send_info_to_player(client, score_message);
 		} else {
 			char score_message[50];
-			snprintf(score_message, sizeof(score_message), "Score: %d", client->snake.dlzka);
+			snprintf(score_message, sizeof(score_message), "Score: %d - Server port: %d", client->snake.dlzka, client->server->server_port);
 			send_info_to_player(client, score_message);
 		}
 		usleep(300000);
 	}
 }
 
-int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
+int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy, int port) {
     struct Hra game;
     init_hra(&game, riadky, stlpce, pocet_jedla, typ_plochy);
 
@@ -135,7 +136,7 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_port = htons(port);
 
     if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Bind failed");
@@ -149,9 +150,10 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Server listening on port %d\n", PORT);
+    printf("Server listening on port %d\n", port);
 
     struct Server server;
+	server.server_port = port;
     server.game = &game;
     server.server_fd = server_fd;
     int pocetKlientov = 0;
@@ -204,7 +206,7 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
 						(*server.pocetKlientov)++;
 						//printf("Assigned\n");
 						char score_message[50];
-						snprintf(score_message, sizeof(score_message), "GAME PAUSED");
+						snprintf(score_message, sizeof(score_message), "GAME PAUSED - Server port: %d", server.server_port);
 						send_info_to_all_players(&server, score_message);
 						pause_game_for_seconds(3, &game);
 					}
@@ -234,7 +236,7 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
 
 	for (int i = 0; i < MAX_CLIENTS; i++) {
 		if (server.clients[i].fd == FD_ASSIGNED || server.clients[i].fd > 0) {
-			close(server.clients[i].fd);
+			//close(server.clients[i].fd);
 			pthread_join(server.clients[i].thread, NULL);
 		}
 	}

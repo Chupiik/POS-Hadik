@@ -10,6 +10,6 @@ struct ClientInfo {
 
 void* handle_input(void* arg);
 void* handle_output(void* arg);
-int main_client();
+int main_client(int port);
 
 #endif

@@ -14,8 +14,6 @@
 #include <fcntl.h>
 
 #define FD_ASSIGNED -10
-
-#define PORT 55000
 #define MAX_CLIENTS 10
 
 struct ClientData {
@@ -31,10 +29,11 @@ struct Server {
 	struct ClientData clients[MAX_CLIENTS];
 	int* pocetKlientov;
 	int server_fd;
+	int server_port;
 };
 
 
-int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy);
+int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy, int port);
 void* client_thread(void* arg);
 
 #endif
