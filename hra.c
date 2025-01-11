@@ -11,12 +11,21 @@ void init_hra(struct Hra* hra, int riadky, int stlpce, int pocet_jedla, int typ_
 
 void nastav_snake(struct Snake *snake, struct Hra *hra) {
     snake->dlzka = 1;
+	int x;
+	int y;
+	do {
+		x = rand() % (hra->plocha.stlpce - 2) + 1;
+		y = rand() % (hra->plocha.riadky - 2) + 1;
+	} while (hra->plocha.level[y * hra->plocha.stlpce + x] == '#' || 
+	hra->plocha.policko[y * hra->plocha.stlpce + x] == '@' || 
+	hra->plocha.policko[y * hra->plocha.stlpce + x] == 'O');
+	
 	for (int i = 0; i < MAX_DLZKA; i++) {
 		snake->cast[0].x = 0;
 		snake->cast[0].y = 0;
 	}
-    snake->cast[0].x = 1 + rand() % (hra->plocha.stlpce - 2);
-    snake->cast[0].y = 1 + rand() % (hra->plocha.riadky - 2);
+    snake->cast[0].x = x;
+    snake->cast[0].y = y;
 	snake->pohybX = 0;
 	snake->pohybY = 0;
 }
