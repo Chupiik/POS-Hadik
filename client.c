@@ -13,7 +13,7 @@
 
 void* handle_input(void* arg) {
 	struct ClientInfo* clientInfo = (struct ClientInfo*) arg;
-	printf("ClientInfo gameOver %d / %d", clientInfo->gameOver, *clientInfo->gameOver);
+	//printf("ClientInfo gameOver %d / %d", clientInfo->gameOver, *clientInfo->gameOver);
 	while(*clientInfo->gameOver == 0) {
 		char input = vrat_klavesu();
 		if (input != -1) {

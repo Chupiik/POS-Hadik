@@ -233,7 +233,8 @@ int main_server(int riadky, int stlpce, int pocet_jedla, int typ_plochy) {
     }
 
 	for (int i = 0; i < MAX_CLIENTS; i++) {
-		if (server.clients[i].fd == FD_ASSIGNED) {
+		if (server.clients[i].fd == FD_ASSIGNED || server.clients[i].fd > 0) {
+			close(server.clients[i].fd);
 			pthread_join(server.clients[i].thread, NULL);
 		}
 	}
