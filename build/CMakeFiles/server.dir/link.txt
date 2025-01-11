@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/server.dir/main_server.c.o CMakeFiles/server.dir/server.c.o CMakeFiles/server.dir/plocha.c.o CMakeFiles/server.dir/hra.c.o CMakeFiles/server.dir/snake.c.o CMakeFiles/server.dir/input.c.o -o server 

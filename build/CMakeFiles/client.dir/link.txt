@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/client.dir/main_client.c.o CMakeFiles/client.dir/client.c.o CMakeFiles/client.dir/plocha.c.o CMakeFiles/client.dir/hra.c.o CMakeFiles/client.dir/snake.c.o CMakeFiles/client.dir/input.c.o -o client 

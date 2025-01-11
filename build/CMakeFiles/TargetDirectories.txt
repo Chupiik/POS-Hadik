@@ -1,0 +1,11 @@
+/home/chupac10/POS-Hadik/build/CMakeFiles/server.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/client.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/main.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/custom_clean.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/build_all.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/edit_cache.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/rebuild_cache.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/list_install_components.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/install.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/install/local.dir
+/home/chupac10/POS-Hadik/build/CMakeFiles/install/strip.dir
